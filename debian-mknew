@@ -1,0 +1,87 @@
+#!/bin/sh
+#
+# http://l3net.wordpress.com/2013/09/21/how-to-build-a-debian-livecd/
+#
+sudo apt-get --yes install xorriso live-build syslinux squashfs-tools
+mkdir livework
+cd livework
+
+if [ -e chroot/home ]; then
+  echo chroot/home exists, assuming bootstrapped
+else
+  sudo debootstrap --arch=amd64 wheezy chroot
+fi
+
+CHROOT_SCRIPT="chroot_script.tmp"
+
+echo "#!/bin/sh" >$CHROOT_SCRIPT
+echo "mount none -t proc /proc" >>$CHROOT_SCRIPT
+echo "mount none -t sysfs /sys" >>$CHROOT_SCRIPT
+echo "mount none -t devpts /dev/pts" >>$CHROOT_SCRIPT
+echo "export HOME=/root" >>$CHROOT_SCRIPT
+echo "export LC_ALL=C" >>$CHROOT_SCRIPT
+echo "export PS1='\e[01;31m(live):\W \$ \e[00m'" >>$CHROOT_SCRIPT
+echo "apt-get update" >>$CHROOT_SCRIPT
+echo "apt-get --yes upgrade" >>$CHROOT_SCRIPT
+echo "apt-get --yes install dialog dbus" >>$CHROOT_SCRIPT
+echo "dbus-uuidgen > /var/lib/dbus/machine-id" >>$CHROOT_SCRIPT
+echo "apt-get --yes install linux-image-amd64 live-boot" >>$CHROOT_SCRIPT
+echo "passwd" >>$CHROOT_SCRIPT
+echo "" >>$CHROOT_SCRIPT
+echo "" >>$CHROOT_SCRIPT
+echo "apt-get clean" >>$CHROOT_SCRIPT
+echo "rm /var/lib/dbus/machine-id && rm -rf /tmp/*" >>$CHROOT_SCRIPT
+echo "umount /proc /sys /dev/pts" >>$CHROOT_SCRIPT
+echo "rm /$CHROOT_SCRIPT" >>$CHROOT_SCRIPT
+echo "" >>$CHROOT_SCRIPT
+echo "" >>$CHROOT_SCRIPT
+
+sudo cp $CHROOT_SCRIPT chroot
+sudo chmod +x chroot/$CHROOT_SCRIPT
+
+sudo chroot chroot /$CHROOT_SCRIPT
+rm $CHROOT_SCRIPT
+
+# ISOLINUX
+
+mkdir -p binary/live && mkdir -p binary/isolinux
+
+cp chroot/boot/vmlinuz-*-amd64 binary/live/vmlinuz
+cp chroot/boot/initrd.img-*-amd64 binary/live/initrd
+sudo rm binary/live/filesystem.squashfs
+sudo mksquashfs chroot binary/live/filesystem.squashfs -comp xz -e boot
+cp /usr/lib/syslinux/isolinux.bin binary/isolinux/.
+cp /usr/lib/syslinux/menu.c32 binary/isolinux/.
+
+# isolinux.cfg
+
+cat >binary/isolinux/isolinux.cfg <<__EE__
+ui menu.c32
+prompt 0
+menu title Boot Menu
+timeout 300
+
+label live-amd64
+	menu label ^Live (amd64)
+	menu default
+	linux /live/vmlinuz
+ 	append initrd=/live/initrd boot=live persistence quiet
+
+label live-amd64-failsafe
+	menu label ^Live (amd64 failsafe)
+	linux /live/vmlinuz
+	append initrd=/live/initrd boot=live persistence config memtest noapic noapm nodma nomce nolapic nomodeset nosmp nosplash vga=normal
+
+endtext
+
+__EE__
+
+
+# XORRISO
+
+
+sudo xorriso -as mkisofs -r -J -joliet-long -l -cache-inodes \
+-isohybrid-mbr /usr/lib/syslinux/isohdpfx.bin -partition_offset 16 \
+-A "Debian Live"  -b isolinux/isolinux.bin -c \
+isolinux/boot.cat -no-emul-boot -boot-load-size 4 \
+-boot-info-table -o remaster.iso binary
