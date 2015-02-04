@@ -17,7 +17,7 @@ else
   mkdir -p work/chroot
   cd work
   pwd
-  sudo debootstrap --arch=amd64 precise chroot
+  sudo debootstrap --arch=amd64 trusty chroot
 fi
   sudo cp /etc/hosts chroot/etc/hosts
   sudo cp /etc/resolv.conf chroot/etc/resolv.conf
