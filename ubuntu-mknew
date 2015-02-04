@@ -46,7 +46,7 @@ if [ ! -e chroot/boot/vmlinuz* ]; then
   echo "apt-get install --yes discover laptop-detect os-prober"  | tee -a $CHROOT_SCRIPT
   echo "apt-get install --yes linux-generic "  | tee -a $CHROOT_SCRIPT
 fi
-echo "apt-get install --yes kvm screen tmux vlan bridge-utils uml-utilities ndisc6 curl git network-manager"  | tee -a $CHROOT_SCRIPT
+echo "apt-get install --yes kvm build-essential screen tmux vlan bridge-utils uml-utilities ndisc6 curl git network-manager"  | tee -a $CHROOT_SCRIPT
 echo "apt-get install --yes openssh-server"  | tee -a $CHROOT_SCRIPT
 
 echo ""  | tee -a $CHROOT_SCRIPT
